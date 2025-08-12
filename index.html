@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code-Easy Car Control</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#2031a3">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Car Control">
+    
+    <!-- MQTT.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 10px;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #2031a3, #cf2a88);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(32, 49, 163, 0.3);
+        }
+
+        .header h1 {
+            color: #FFE746;
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .connection-panel {
+            background: rgba(32, 49, 163, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+
+        .connection-panel input, .connection-panel select {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            font-size: 16px;
+            border-radius: 8px;
+            border: none;
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .connect-btn {
+            background: #F6802A;
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 18px;
+            width: 100%;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .connect-btn:disabled {
+            background: #666666;
+            cursor: not-allowed;
+        }
+
+        .status {
+            background: rgba(231, 156, 70, 0.8);
+            color: #000000;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .status.connected {
+            background: rgba(250, 224, 86, 0.9);
+        }
+
+        .controls {
+            max-width: 350px;
+            margin: 0 auto;
+            opacity: 0.3;
+            pointer-events: none;
+            transition: all 0.3s;
+        }
+
+        .controls.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .button-row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .control-btn {
+            background: #2031a3;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            min-width: 80px;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .control-btn:active {
+            background: #cf2a88;
+            transform: scale(0.95);
+        }
+
+        .forward-btn {
+            background: #F6802A;
+            width: 100px;
+            height: 80px;
+        }
+
+        .stop-btn {
+            background: #e79c46;
+            width: 80px;
+            height: 80px;
+        }
+
+        .backward-btn {
+            background: #FAE056;
+            color: #000000;
+            width: 100px;
+            height: 80px;
+        }
+
+        .mode-controls {
+            background: rgba(207, 42, 136, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .mode-btn {
+            background: #FAE056;
+            color: #000000;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .connection-indicator {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #ff4444;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .connection-indicator.connected {
+            background: #44ff44;
+            box-shadow: 0 0 10px #44ff44;
+        }
+
+        .log {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 12px;
+            font-family: monospace;
+        }
+
+        @media (max-width: 400px) {
+            .control-btn {
+                min-width: 70px;
+                min-height: 70px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-indicator" id="connectionIndicator"></div>
+    
+    <div class="header">
+        <h1>🚗 Code-Easy Car Control</h1>
+        <p>MQTT Remote Control System</p>
+    </div>
+
+    <div class="connection-panel">
+        <h3>🌐 Connection Setup</h3>
+        <input type="text" id="mqttBroker" placeholder="MQTT Broker IP (e.g., 192.168.1.100)" value="192.168.1.100">
+        <select id="carSelect">
+            <option value="">Select Your Car</option>
+            <option value="01">PicoCar-01</option>
+            <option value="02">PicoCar-02</option>
+            <option value="03">PicoCar-03</option>
+            <option value="04">PicoCar-04</option>
+            <option value="05">PicoCar-05</option>
+            <option value="06">PicoCar-06</option>
+            <option value="07">PicoCar-07</option>
+            <option value="08">PicoCar-08</option>
+        </select>
+        <button class="connect-btn" id="connectBtn" onclick="toggleConnection()">Connect to Car</button>
+    </div>
+
+    <div class="status" id="status">
+        Enter MQTT broker IP and select your car to connect
+    </div>
+
+    <div class="controls" id="controls">
+        <!-- Forward Button -->
+        <div class="button-row">
+            <button class="control-btn forward-btn" id="forwardBtn">
+                ⬆️<br><span>Forward</span>
+            </button>
+        </div>
+
+        <!-- Left, Stop, Right -->
+        <div class="button-row">
+            <button class="control-btn" id="leftBtn">
+                ⬅️<br><span>Left</span>
+            </button>
+            <button class="control-btn stop-btn" id="stopBtn">
+                ⏹️<br><span>Stop</span>
+            </button>
+            <button class="control-btn" id="rightBtn">
+                ➡️<br><span>Right</span>
+            </button>
+        </div>
+
+        <!-- Backward Button -->
+        <div class="button-row">
+            <button class="control-btn backward-btn" id="backwardBtn">
+                ⬇️<br><span>Backward</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="mode-controls">
+        <h3>🥊 Sumo Bot Mode</h3>
+        <button class="mode-btn" onclick="sendCommand('sumo_start')">Start Sumo Battle</button>
+        <button class="mode-btn" onclick="sendCommand('sumo_stop')">Stop Sumo Battle</button>
+        <button class="mode-btn" onclick="pingCar()">Ping Car</button>
+    </div>
+
+    <div class="log" id="log">
+        <div>📋 Connection Log:</div>
+    </div>
+
+    <script>
+        class CarController {
+            constructor() {
+                this.mqttClient = null;
+                this.isConnected = false;
+                this.selectedCar = '';
+                this.mqttBroker = '';
+                this.controlTopic = '';
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                // Control buttons
+                this.setupButton('forwardBtn', 'forward');
+                this.setupButton('backwardBtn', 'backward');
+                this.setupButton('leftBtn', 'left');
+                this.setupButton('rightBtn', 'right');
+                this.setupButton('stopBtn', 'stop');
+            }
+
+            setupButton(buttonId, command) {
+                const button = document.getElementById(buttonId);
+                
+                // Touch events (mobile)
+                button.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.sendCommand(command);
+                    button.style.transform = 'scale(0.95)';
+                });
+
+                button.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    if (command !== 'stop') {
+                        this.sendCommand('stop');
+                    }
+                    button.style.transform = 'scale(1)';
+                });
+
+                // Mouse events (desktop)
+                button.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    this.sendCommand(command);
+                    button.style.transform = 'scale(0.95)';
+                });
+
+                button.addEventListener('mouseup', (e) => {
+                    e.preventDefault();
+                    if (command !== 'stop') {
+                        this.sendCommand('stop');
+                    }
+                    button.style.transform = 'scale(1)';
+                });
+
+                // Prevent context menu
+                button.addEventListener('contextmenu', (e) => e.preventDefault());
+            }
+
+            async toggleConnection() {
+                if (this.isConnected) {
+                    this.disconnect();
+                } else {
+                    await this.connect();
+                }
+            }
+
+            async connect() {
+                this.mqttBroker = document.getElementById('mqttBroker').value.trim();
+                this.selectedCar = document.getElementById('carSelect').value;
+                
+                if (!this.mqttBroker) {
+                    this.updateStatus('Please enter MQTT broker IP address', false);
+                    return;
+                }
+                
+                if (!this.selectedCar) {
+                    this.updateStatus('Please select your car', false);
+                    return;
+                }
+
+                this.controlTopic = `codeasy/car/${this.selectedCar}/control`;
+                this.updateStatus('Connecting to MQTT broker...', false);
+                
+                try {
+                    // Create MQTT client with WebSocket
+                    const clientId = `web_${this.selectedCar}_${Math.random().toString(16).substr(2, 8)}`;
+                    this.mqttClient = new Paho.MQTT.Client(this.mqttBroker, 9001, clientId);
+                    
+                    // Set callbacks
+                    this.mqttClient.onConnectionLost = (responseObject) => {
+                        if (responseObject.errorCode !== 0) {
+                            this.log(`Connection lost: ${responseObject.errorMessage}`);
+                            this.updateConnectionStatus(false);
+                        }
+                    };
+                    
+                    this.mqttClient.onMessageArrived = (message) => {
+                        this.log(`Received: ${message.destinationName}: ${message.payloadString}`);
+                    };
+                    
+                    // Connect options
+                    const connectOptions = {
+                        onSuccess: () => {
+                            this.onConnectSuccess();
+                        },
+                        onFailure: (error) => {
+                            this.log(`Connection failed: ${error.errorMessage}`);
+                            this.updateStatus(`Connection failed: ${error.errorMessage}`, false);
+                        },
+                        keepAliveInterval: 30,
+                        cleanSession: true
+                    };
+                    
+                    // Attempt connection
+                    this.mqttClient.connect(connectOptions);
+                    
+                } catch (error) {
+                    this.log(`Connection error: ${error.message}`);
+                    this.updateStatus(`Connection error: ${error.message}`, false);
+                }
+            }
+
+            onConnectSuccess() {
+                this.isConnected = true;
+                this.updateConnectionStatus(true);
+                this.updateStatus(`Connected to PicoCar-${this.selectedCar}`, true);
+                
+                // Subscribe to status updates
+                const statusTopic = `codeasy/car/${this.selectedCar}/status`;
+                this.mqttClient.subscribe(statusTopic);
+                
+                this.log(`Connected to MQTT broker: ${this.mqttBroker}`);
+                this.log(`Control topic: ${this.controlTopic}`);
+                
+                // Enable controls
+                document.getElementById('controls').classList.add('active');
+                document.getElementById('connectBtn').textContent = 'Disconnect';
+                
+                // Send ping to wake up car
+                this.sendCommand('ping');
+            }
+
+            disconnect() {
+                if (this.mqttClient && this.isConnected) {
+                    this.mqttClient.disconnect();
+                    this.log('Disconnected from MQTT broker');
+                }
+                
+                this.isConnected = false;
+                this.updateConnectionStatus(false);
+                this.updateStatus('Disconnected', false);
+                
+                // Disable controls
+                document.getElementById('controls').classList.remove('active');
+                document.getElementById('connectBtn').textContent = 'Connect to Car';
+            }
+
+            sendCommand(command) {
+                if (!this.isConnected || !this.mqttClient) {
+                    this.updateStatus('Not connected to car!', false);
+                    return;
+                }
+
+                try {
+                    const message = new Paho.MQTT.Message(command);
+                    message.destinationName = this.controlTopic;
+                    message.qos = 1;
+                    
+                    this.mqttClient.send(message);
+                    this.log(`Sent: ${command}`);
+                    
+                    // Visual feedback
+                    if (command !== 'stop' && command !== 'ping') {
+                        setTimeout(() => {
+                            // Auto-stop after 100ms for safety
+                            if (this.isConnected) {
+                                const stopMsg = new Paho.MQTT.Message('stop');
+                                stopMsg.destinationName = this.controlTopic;
+                                stopMsg.qos = 1;
+                                this.mqttClient.send(stopMsg);
+                            }
+                        }, 100);
+                    }
+                    
+                } catch (error) {
+                    this.log(`Send error: ${error.message}`);
+                    this.updateStatus('Failed to send command', false);
+                }
+            }
+
+            pingCar() {
+                this.sendCommand('ping');
+                this.updateStatus('Ping sent to car...', true);
+            }
+
+            updateConnectionStatus(connected) {
+                const indicator = document.getElementById('connectionIndicator');
+                indicator.classList.toggle('connected', connected);
+            }
+
+            updateStatus(message, isConnected) {
+                const statusEl = document.getElementById('status');
+                statusEl.textContent = message;
+                statusEl.classList.toggle('connected', isConnected);
+                this.updateConnectionStatus(isConnected);
+            }
+
+            log(message) {
+                const logEl = document.getElementById('log');
+                const timestamp = new Date().toLocaleTimeString();
+                const logLine = document.createElement('div');
+                logLine.textContent = `[${timestamp}] ${message}`;
+                logEl.appendChild(logLine);
+                logEl.scrollTop = logEl.scrollHeight;
+            }
+        }
+
+        // Global functions for inline event handlers
+        let controller;
+
+        function toggleConnection() {
+            controller.toggleConnection();
+        }
+
+        function sendCommand(command) {
+            controller.sendCommand(command);
+        }
+
+        function pingCar() {
+            controller.pingCar();
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            controller = new CarController();
+        });
+    </script>
+</body>
+</html>

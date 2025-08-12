@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Find Your Code-Easy Car</title>
+    <title>Code-Easy Car Directory</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -22,82 +22,48 @@
             text-align: center;
         }
         
-        .car-list {
-            max-width: 600px;
+        .instructions {
+            background: rgba(32, 49, 163, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .car-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            max-width: 800px;
             margin: 0 auto;
         }
         
-        .car-item {
-            background: rgba(32, 49, 163, 0.8);
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .car-item.online {
+        .car-card {
             background: rgba(250, 224, 86, 0.9);
             color: #000000;
-        }
-        
-        .car-item.offline {
-            background: rgba(100, 100, 100, 0.5);
-            opacity: 0.6;
-        }
-        
-        .car-info {
-            font-weight: bold;
-        }
-        
-        .car-status {
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 12px;
-        }
-        
-        .status-online {
-            background: #44ff44;
-            color: #000000;
-        }
-        
-        .status-offline {
-            background: #ff4444;
-            color: #ffffff;
-        }
-        
-        .connect-btn {
-            background: #F6802A;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        
-        .connect-btn:disabled {
-            background: #666666;
-            cursor: not-allowed;
-        }
-        
-        .scan-btn {
-            background: #cf2a88;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 16px;
-            margin: 20px auto;
-            display: block;
-        }
-        
-        .loading {
-            text-align: center;
             padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .car-card:hover {
+            transform: scale(1.05);
+            background: rgba(246, 128, 42, 0.9);
+        }
+        
+        .car-number {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .car-ip {
+            font-family: monospace;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 5px;
+            border-radius: 5px;
+            margin: 10px 0;
         }
         
         .manual-entry {
@@ -109,160 +75,224 @@
         }
         
         .manual-entry input {
-            padding: 10px;
+            padding: 12px;
             border-radius: 5px;
             border: none;
             margin: 10px;
-            width: 150px;
+            width: 200px;
+            font-size: 16px;
+        }
+        
+        .connect-btn {
+            background: #F6802A;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .status-unknown {
+            background: #ffaa00;
+        }
+        
+        .status-online {
+            background: #44ff44;
+        }
+        
+        .status-offline {
+            background: #ff4444;
+        }
+        
+        .refresh-btn {
+            background: #cf2a88;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 20px auto;
+            display: block;
+        }
+        
+        .help-section {
+            background: rgba(231, 156, 70, 0.8);
+            color: #000000;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1 style="color: #FFE746;">🚗 Find Your Code-Easy Car</h1>
-        <p>Scan for available cars on the network</p>
+        <h1 style="color: #FFE746;">🚗 Code-Easy Car Directory</h1>
+        <p>Connect to your assigned Pico car</p>
     </div>
     
-    <button class="scan-btn" onclick="scanForCars()">🔍 Scan for Cars</button>
-    
-    <div class="car-list" id="carList">
-        <div class="loading" id="loading" style="display: none;">
-            <p>🔍 Scanning for cars...</p>
-            <p>This may take a few seconds...</p>
-        </div>
+    <div class="instructions">
+        <h3>📋 How to Connect:</h3>
+        <ol>
+            <li><strong>Find your car number</strong> from your teacher</li>
+            <li><strong>Click on your car</strong> below to connect</li>
+            <li><strong>Bookmark the page</strong> for easy access later</li>
+        </ol>
     </div>
+    
+    <div class="car-grid" id="carGrid">
+        <!-- Cars will be populated here -->
+    </div>
+    
+    <button class="refresh-btn" onclick="refreshCarStatus()">🔄 Refresh Car Status</button>
     
     <div class="manual-entry">
-        <h3>Manual Connection</h3>
-        <p>If your car doesn't appear above, enter the IP manually:</p>
+        <h3>🔧 Manual Connection</h3>
+        <p>Know your car's IP address? Enter it here:</p>
         <input type="text" id="manualIP" placeholder="192.168.1.105" maxlength="15">
-        <button class="connect-btn" onclick="connectManual()">Connect</button>
+        <button class="connect-btn" onclick="connectManual()">Connect Direct</button>
+    </div>
+    
+    <div class="help-section">
+        <h3>❓ Need Help?</h3>
+        <ul>
+            <li><strong>Can't find your car?</strong> Check if it's powered on and connected to WiFi</li>
+            <li><strong>Page won't load?</strong> Make sure your phone is on the same WiFi network</li>
+            <li><strong>Car not responding?</strong> Try the manual connection with the IP address</li>
+        </ul>
     </div>
 
     <script>
-        const commonIPs = [
-            '192.168.1.', '192.168.0.', '10.0.0.', '172.16.0.'
+        // Common IP ranges for classroom networks
+        const networkRanges = [
+            '192.168.1.',
+            '192.168.0.',
+            '10.0.0.',
+            '172.16.1.'
         ];
         
-        async function scanForCars() {
-            const carList = document.getElementById('carList');
-            const loading = document.getElementById('loading');
-            
-            loading.style.display = 'block';
-            carList.innerHTML = '<div class="loading" id="loading"><p>🔍 Scanning for cars...</p></div>';
-            
-            const foundCars = [];
-            
-            // Get current IP to determine network range
-            const currentIP = await getCurrentIP();
-            const networkBase = currentIP.substring(0, currentIP.lastIndexOf('.') + 1);
-            
-            console.log(`Scanning network: ${networkBase}x`);
-            
-            // Scan common car IPs (100-120 range)
-            const promises = [];
-            for (let i = 100; i <= 120; i++) {
-                const ip = networkBase + i;
-                promises.push(checkCarAt(ip));
-            }
-            
-            // Wait for all checks to complete
-            const results = await Promise.allSettled(promises);
-            
-            results.forEach((result, index) => {
-                if (result.status === 'fulfilled' && result.value) {
-                    foundCars.push(result.value);
-                }
-            });
-            
-            displayCars(foundCars);
-        }
+        // Predefined car slots (teacher can update these)
+        const carSlots = [
+            { id: '01', ip: '192.168.1.101', status: 'unknown' },
+            { id: '02', ip: '192.168.1.102', status: 'unknown' },
+            { id: '03', ip: '192.168.1.103', status: 'unknown' },
+            { id: '04', ip: '192.168.1.104', status: 'unknown' },
+            { id: '05', ip: '192.168.1.105', status: 'unknown' },
+            { id: '06', ip: '192.168.1.106', status: 'unknown' },
+            { id: '07', ip: '192.168.1.107', status: 'unknown' },
+            { id: '08', ip: '192.168.1.108', status: 'unknown' }
+        ];
         
-        async function getCurrentIP() {
-            try {
-                // Try to get local IP (this is a simplified approach)
-                const response = await fetch('http://httpbin.org/ip');
-                const data = await response.json();
-                return data.origin;
-            } catch {
-                // Fallback to common network
-                return '192.168.1.100';
-            }
-        }
-        
-        async function checkCarAt(ip) {
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
-                
-                const response = await fetch(`http://${ip}/status`, {
-                    method: 'GET',
-                    signal: controller.signal
-                });
-                
-                clearTimeout(timeoutId);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    return {
-                        ip: ip,
-                        carId: data.car_id,
-                        mode: data.mode,
-                        online: true
-                    };
-                }
-            } catch (error) {
-                // Car not found at this IP
-                return null;
-            }
-            return null;
-        }
-        
-        function displayCars(cars) {
-            const carList = document.getElementById('carList');
-            
-            if (cars.length === 0) {
-                carList.innerHTML = `
-                    <div class="car-item offline">
-                        <div class="car-info">No cars found</div>
-                        <div class="car-status status-offline">Try manual connection below</div>
-                    </div>
-                `;
-                return;
-            }
-            
+        function generateCarGrid() {
+            const carGrid = document.getElementById('carGrid');
             let html = '';
-            cars.forEach(car => {
+            
+            carSlots.forEach(car => {
+                const statusClass = `status-${car.status}`;
+                const statusText = car.status === 'unknown' ? 'Click to Test' : 
+                                 car.status === 'online' ? 'Online' : 'Offline';
+                
                 html += `
-                    <div class="car-item online">
-                        <div class="car-info">
-                            🚗 PicoCar-${car.carId}<br>
-                            <small>IP: ${car.ip}</small><br>
-                            <small>Mode: ${car.mode}</small>
-                        </div>
+                    <div class="car-card" onclick="connectToCar('${car.ip}', '${car.id}')">
+                        <div class="car-number">🚗 PicoCar-${car.id}</div>
+                        <div class="car-ip">${car.ip}</div>
                         <div>
-                            <div class="car-status status-online">ONLINE</div>
-                            <a href="http://${car.ip}" class="connect-btn" target="_blank">Connect</a>
+                            <span class="status-indicator ${statusClass}"></span>
+                            ${statusText}
                         </div>
                     </div>
                 `;
             });
             
-            carList.innerHTML = html;
+            carGrid.innerHTML = html;
+        }
+        
+        async function connectToCar(ip, carId) {
+            // Update status to testing
+            updateCarStatus(carId, 'testing');
+            
+            try {
+                // Try to open the car's control page
+                const carWindow = window.open(`http://${ip}`, '_blank');
+                
+                // Test if the car is reachable (simplified check)
+                setTimeout(() => {
+                    try {
+                        if (carWindow && !carWindow.closed) {
+                            updateCarStatus(carId, 'online');
+                        } else {
+                            updateCarStatus(carId, 'offline');
+                        }
+                    } catch (e) {
+                        updateCarStatus(carId, 'offline');
+                    }
+                }, 2000);
+                
+            } catch (error) {
+                updateCarStatus(carId, 'offline');
+                // Still try to open the page
+                window.open(`http://${ip}`, '_blank');
+            }
+        }
+        
+        function updateCarStatus(carId, status) {
+            const car = carSlots.find(c => c.id === carId);
+            if (car) {
+                car.status = status;
+                generateCarGrid(); // Refresh the display
+            }
         }
         
         function connectManual() {
             const ip = document.getElementById('manualIP').value.trim();
             if (ip) {
-                window.open(`http://${ip}`, '_blank');
+                if (ip.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
+                    window.open(`http://${ip}`, '_blank');
+                } else {
+                    alert('Please enter a valid IP address (e.g., 192.168.1.105)');
+                }
             } else {
                 alert('Please enter an IP address');
             }
         }
         
-        // Auto-scan when page loads
+        function refreshCarStatus() {
+            // Reset all car statuses
+            carSlots.forEach(car => car.status = 'unknown');
+            generateCarGrid();
+        }
+        
+        // Auto-detect current network and suggest IPs
+        function detectNetwork() {
+            // Try to guess the network range based on current page URL
+            const currentHost = window.location.hostname;
+            if (currentHost && currentHost.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
+                const networkBase = currentHost.substring(0, currentHost.lastIndexOf('.') + 1);
+                
+                // Update car IPs to match detected network
+                carSlots.forEach((car, index) => {
+                    car.ip = networkBase + (101 + index);
+                });
+                
+                console.log(`Detected network: ${networkBase}x`);
+                generateCarGrid();
+            }
+        }
+        
+        // Initialize page
         window.addEventListener('load', () => {
-            setTimeout(scanForCars, 1000);
+            generateCarGrid();
+            detectNetwork();
         });
     </script>
 </body>

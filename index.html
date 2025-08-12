@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Code-Easy Car Directory</title>
+    <title>Code-Easy Car Directory - Auto Discovery</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -22,6 +22,67 @@
             text-align: center;
         }
         
+        .network-info {
+            background: rgba(32, 49, 163, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-family: monospace;
+            text-align: center;
+        }
+        
+        .scan-section {
+            background: rgba(207, 42, 136, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .scan-btn {
+            background: #FAE056;
+            color: #000000;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px;
+        }
+        
+        .scan-btn:hover {
+            background: #F6802A;
+            color: white;
+        }
+        
+        .scan-btn:disabled {
+            background: #666;
+            color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 20px;
+            background: linear-gradient(45deg, #44ff44, #00aa00);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
         .instructions {
             background: rgba(32, 49, 163, 0.8);
             padding: 20px;
@@ -31,9 +92,9 @@
         
         .car-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 15px;
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
         }
         
@@ -44,12 +105,23 @@
             border-radius: 10px;
             text-align: center;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: all 0.3s ease;
+            border: 3px solid transparent;
         }
         
         .car-card:hover {
             transform: scale(1.05);
             background: rgba(246, 128, 42, 0.9);
+        }
+        
+        .car-card.online {
+            border-color: #44ff44;
+            box-shadow: 0 0 10px rgba(68, 255, 68, 0.3);
+        }
+        
+        .car-card.offline {
+            background: rgba(150, 150, 150, 0.5);
+            color: #666;
         }
         
         .car-number {
@@ -61,9 +133,15 @@
         .car-ip {
             font-family: monospace;
             background: rgba(0, 0, 0, 0.2);
-            padding: 5px;
+            padding: 8px;
             border-radius: 5px;
             margin: 10px 0;
+            font-size: 14px;
+        }
+        
+        .car-details {
+            font-size: 12px;
+            margin: 5px 0;
         }
         
         .manual-entry {
@@ -96,10 +174,17 @@
         
         .status-indicator {
             display: inline-block;
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
-            margin-right: 5px;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
         
         .status-unknown {
@@ -112,6 +197,10 @@
         
         .status-offline {
             background: #ff4444;
+        }
+        
+        .status-scanning {
+            background: #00aaff;
         }
         
         .refresh-btn {
@@ -133,20 +222,70 @@
             border-radius: 10px;
             margin: 20px 0;
         }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 20px;
+            font-weight: bold;
+            color: #FFE746;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1 style="color: #FFE746;">🚗 Code-Easy Car Directory</h1>
-        <p>Connect to your assigned Pico car</p>
+        <p>Auto-discover and connect to Pico cars on your network</p>
+    </div>
+    
+    <div class="network-info" id="networkInfo">
+        <strong>🌐 Network Detection:</strong><br>
+        <span id="currentNetwork">Detecting network...</span>
+    </div>
+    
+    <div class="scan-section">
+        <h3>🔍 Auto-Discovery Scanner</h3>
+        <p>Automatically find all PicoCars on your network</p>
+        
+        <button class="scan-btn" id="quickScanBtn" onclick="startQuickScan()">⚡ Quick Scan (Common IPs)</button>
+        <button class="scan-btn" id="fullScanBtn" onclick="startFullScan()">🔬 Full Network Scan</button>
+        
+        <div class="progress-bar" id="progressBarContainer" style="display: none;">
+            <div class="progress-fill" id="progressFill">0%</div>
+        </div>
+        
+        <div class="stats" id="scanStats" style="display: none;">
+            <div class="stat-item">
+                <div class="stat-number" id="foundCount">0</div>
+                <div>Found</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="scannedCount">0</div>
+                <div>Scanned</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="totalCount">0</div>
+                <div>Total</div>
+            </div>
+        </div>
     </div>
     
     <div class="instructions">
-        <h3>📋 How to Connect:</h3>
+        <h3>📋 How to Use:</h3>
         <ol>
-            <li><strong>Find your car number</strong> from your teacher</li>
-            <li><strong>Click on your car</strong> below to connect</li>
-            <li><strong>Bookmark the page</strong> for easy access later</li>
+            <li><strong>Click "Quick Scan"</strong> to find cars with common IP addresses</li>
+            <li><strong>Use "Full Network Scan"</strong> to scan your entire network (slower)</li>
+            <li><strong>Click on any found car</strong> to connect and control it</li>
+            <li><strong>Bookmark this page</strong> for easy access in class</li>
         </ol>
     </div>
     
@@ -154,7 +293,7 @@
         <!-- Cars will be populated here -->
     </div>
     
-    <button class="refresh-btn" onclick="refreshCarStatus()">🔄 Refresh Car Status</button>
+    <button class="refresh-btn" onclick="refreshAllCars()">🔄 Refresh All Cars</button>
     
     <div class="manual-entry">
         <h3>🔧 Manual Connection</h3>
@@ -164,93 +303,289 @@
     </div>
     
     <div class="help-section">
-        <h3>❓ Need Help?</h3>
+        <h3>❓ Troubleshooting:</h3>
         <ul>
-            <li><strong>Can't find your car?</strong> Check if it's powered on and connected to WiFi</li>
-            <li><strong>Page won't load?</strong> Make sure your phone is on the same WiFi network</li>
-            <li><strong>Car not responding?</strong> Try the manual connection with the IP address</li>
+            <li><strong>No cars found?</strong> Make sure cars are powered on and connected to the same WiFi</li>
+            <li><strong>Scan is slow?</strong> Use Quick Scan first, then Full Scan if needed</li>
+            <li><strong>Car shows offline?</strong> Try connecting anyway - the car might still work</li>
+            <li><strong>Can't connect?</strong> Check that your device is on the same WiFi network</li>
         </ul>
     </div>
 
     <script>
-        // Common IP ranges for classroom networks
-        const networkRanges = [
+        // Network detection and car management
+        let discoveredCars = [];
+        let isScanning = false;
+        let scanProgress = 0;
+        let currentNetworkBase = '';
+        
+        // Common IP ranges for different networks
+        const commonRanges = [
             '192.168.1.',
             '192.168.0.',
             '10.0.0.',
-            '172.16.1.'
+            '192.168.43.',  // Mobile hotspot
+            '172.16.1.',
+            '10.0.1.'
         ];
         
-        // Predefined car slots (teacher can update these)
-        const carSlots = [
-            { id: '01', ip: '192.168.1.101', status: 'unknown' },
-            { id: '02', ip: '192.168.1.102', status: 'unknown' },
-            { id: '03', ip: '192.168.1.103', status: 'unknown' },
-            { id: '04', ip: '192.168.1.104', status: 'unknown' },
-            { id: '05', ip: '192.168.1.105', status: 'unknown' },
-            { id: '06', ip: '192.168.1.106', status: 'unknown' },
-            { id: '07', ip: '192.168.1.107', status: 'unknown' },
-            { id: '08', ip: '192.168.1.108', status: 'unknown' }
-        ];
+        // Common IP endings for devices
+        const commonIPs = [100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 
+                          111, 112, 113, 114, 115, 120, 121, 122, 123, 124, 125,
+                          150, 151, 152, 153, 154, 155, 200, 201, 202, 203, 204, 205];
         
-        function generateCarGrid() {
+        class CarScanner {
+            constructor() {
+                this.foundCars = new Set();
+                this.timeout = 3000; // 3 seconds timeout
+            }
+            
+            async testCarIP(ip) {
+                try {
+                    // Try to fetch the status endpoint
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+                    
+                    const response = await fetch(`http://${ip}/status`, {
+                        method: 'GET',
+                        signal: controller.signal,
+                        mode: 'cors'
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        return {
+                            ip: ip,
+                            carId: data.car_id || 'Unknown',
+                            mode: data.mode || 'Unknown',
+                            timestamp: new Date().toLocaleTimeString(),
+                            wifiNetwork: data.wifi_network || 'Unknown'
+                        };
+                    }
+                } catch (error) {
+                    // Also try just a basic connection test
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 1000);
+                        
+                        const response = await fetch(`http://${ip}/`, {
+                            method: 'HEAD',
+                            signal: controller.signal,
+                            mode: 'no-cors'
+                        });
+                        
+                        clearTimeout(timeoutId);
+                        
+                        // If we get any response, assume it's a car
+                        return {
+                            ip: ip,
+                            carId: 'Detected',
+                            mode: 'Unknown',
+                            timestamp: new Date().toLocaleTimeString(),
+                            wifiNetwork: 'Unknown'
+                        };
+                    } catch (e) {
+                        return null;
+                    }
+                }
+                return null;
+            }
+            
+            async quickScan() {
+                const ipsToScan = [];
+                
+                // Generate IPs to scan based on current network
+                if (currentNetworkBase) {
+                    commonIPs.forEach(ending => {
+                        ipsToScan.push(currentNetworkBase + ending);
+                    });
+                } else {
+                    // Scan all common ranges
+                    commonRanges.forEach(range => {
+                        commonIPs.slice(0, 10).forEach(ending => { // Limit for quick scan
+                            ipsToScan.push(range + ending);
+                        });
+                    });
+                }
+                
+                await this.scanIPs(ipsToScan);
+            }
+            
+            async fullScan() {
+                const ipsToScan = [];
+                
+                if (currentNetworkBase) {
+                    // Scan entire subnet (1-254)
+                    for (let i = 1; i <= 254; i++) {
+                        ipsToScan.push(currentNetworkBase + i);
+                    }
+                } else {
+                    // Scan common ranges more thoroughly
+                    commonRanges.forEach(range => {
+                        for (let i = 100; i <= 120; i++) {
+                            ipsToScan.push(range + i);
+                        }
+                    });
+                }
+                
+                await this.scanIPs(ipsToScan);
+            }
+            
+            async scanIPs(ipsToScan) {
+                isScanning = true;
+                this.foundCars.clear();
+                discoveredCars = [];
+                
+                updateScanStats(0, 0, ipsToScan.length);
+                showProgress(true);
+                
+                const batchSize = 10; // Scan in batches to avoid overwhelming the browser
+                
+                for (let i = 0; i < ipsToScan.length; i += batchSize) {
+                    const batch = ipsToScan.slice(i, i + batchSize);
+                    const promises = batch.map(ip => this.testCarIP(ip));
+                    
+                    const results = await Promise.all(promises);
+                    
+                    results.forEach(result => {
+                        if (result && !this.foundCars.has(result.ip)) {
+                            this.foundCars.add(result.ip);
+                            discoveredCars.push(result);
+                            updateCarGrid();
+                        }
+                    });
+                    
+                    scanProgress = i + batchSize;
+                    updateProgress(scanProgress, ipsToScan.length);
+                    updateScanStats(this.foundCars.size, scanProgress, ipsToScan.length);
+                    
+                    // Small delay to prevent browser freeze
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+                
+                isScanning = false;
+                showProgress(false);
+                updateScanButtons();
+                
+                console.log(`Scan complete! Found ${this.foundCars.size} cars.`);
+            }
+        }
+        
+        const scanner = new CarScanner();
+        
+        // UI Functions
+        function detectNetwork() {
+            // Try to detect current network from browser
+            const hostname = window.location.hostname;
+            
+            // If accessing via IP, use that network
+            if (hostname.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
+                currentNetworkBase = hostname.substring(0, hostname.lastIndexOf('.') + 1);
+                document.getElementById('currentNetwork').innerHTML = 
+                    `Detected: ${currentNetworkBase}x<br><small>Will scan ${currentNetworkBase}100-125 first</small>`;
+                return;
+            }
+            
+            // Try to get network info from a test request
+            // This is limited by browser security, but we can try
+            document.getElementById('currentNetwork').innerHTML = 
+                `Domain-based access detected<br><small>Will scan common network ranges</small>`;
+        }
+        
+        function updateCarGrid() {
             const carGrid = document.getElementById('carGrid');
             let html = '';
             
-            carSlots.forEach(car => {
-                const statusClass = `status-${car.status}`;
-                const statusText = car.status === 'unknown' ? 'Click to Test' : 
-                                 car.status === 'online' ? 'Online' : 'Offline';
+            // Sort cars by ID
+            const sortedCars = [...discoveredCars].sort((a, b) => {
+                if (a.carId === 'Unknown' || a.carId === 'Detected') return 1;
+                if (b.carId === 'Unknown' || b.carId === 'Detected') return -1;
+                return a.carId.localeCompare(b.carId);
+            });
+            
+            sortedCars.forEach(car => {
+                const statusClass = 'status-online';
+                const cardClass = 'car-card online';
                 
                 html += `
-                    <div class="car-card" onclick="connectToCar('${car.ip}', '${car.id}')">
-                        <div class="car-number">🚗 PicoCar-${car.id}</div>
+                    <div class="${cardClass}" onclick="connectToCar('${car.ip}', '${car.carId}')">
+                        <div class="car-number">🚗 PicoCar-${car.carId}</div>
                         <div class="car-ip">${car.ip}</div>
-                        <div>
+                        <div class="car-details">
                             <span class="status-indicator ${statusClass}"></span>
-                            ${statusText}
+                            Mode: ${car.mode}<br>
+                            Last seen: ${car.timestamp}
                         </div>
                     </div>
                 `;
             });
             
+            if (html === '') {
+                html = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #888;">
+                        <h3>🔍 No cars found yet</h3>
+                        <p>Click "Quick Scan" or "Full Network Scan" to discover PicoCars</p>
+                    </div>
+                `;
+            }
+            
             carGrid.innerHTML = html;
         }
         
-        async function connectToCar(ip, carId) {
-            // Update status to testing
-            updateCarStatus(carId, 'testing');
+        function showProgress(show) {
+            const container = document.getElementById('progressBarContainer');
+            const stats = document.getElementById('scanStats');
+            container.style.display = show ? 'block' : 'none';
+            stats.style.display = show ? 'flex' : 'none';
+        }
+        
+        function updateProgress(current, total) {
+            const percentage = Math.round((current / total) * 100);
+            const fill = document.getElementById('progressFill');
+            fill.style.width = percentage + '%';
+            fill.textContent = percentage + '%';
+        }
+        
+        function updateScanStats(found, scanned, total) {
+            document.getElementById('foundCount').textContent = found;
+            document.getElementById('scannedCount').textContent = scanned;
+            document.getElementById('totalCount').textContent = total;
+        }
+        
+        function updateScanButtons() {
+            const quickBtn = document.getElementById('quickScanBtn');
+            const fullBtn = document.getElementById('fullScanBtn');
             
-            try {
-                // Try to open the car's control page
-                const carWindow = window.open(`http://${ip}`, '_blank');
-                
-                // Test if the car is reachable (simplified check)
-                setTimeout(() => {
-                    try {
-                        if (carWindow && !carWindow.closed) {
-                            updateCarStatus(carId, 'online');
-                        } else {
-                            updateCarStatus(carId, 'offline');
-                        }
-                    } catch (e) {
-                        updateCarStatus(carId, 'offline');
-                    }
-                }, 2000);
-                
-            } catch (error) {
-                updateCarStatus(carId, 'offline');
-                // Still try to open the page
-                window.open(`http://${ip}`, '_blank');
+            quickBtn.disabled = isScanning;
+            fullBtn.disabled = isScanning;
+            
+            if (isScanning) {
+                quickBtn.textContent = '⏳ Scanning...';
+                fullBtn.textContent = '⏳ Scanning...';
+            } else {
+                quickBtn.textContent = '⚡ Quick Scan (Common IPs)';
+                fullBtn.textContent = '🔬 Full Network Scan';
             }
         }
         
-        function updateCarStatus(carId, status) {
-            const car = carSlots.find(c => c.id === carId);
-            if (car) {
-                car.status = status;
-                generateCarGrid(); // Refresh the display
+        // Event Handlers
+        async function startQuickScan() {
+            updateScanButtons();
+            await scanner.quickScan();
+        }
+        
+        async function startFullScan() {
+            if (confirm('Full network scan may take 1-2 minutes. Continue?')) {
+                updateScanButtons();
+                await scanner.fullScan();
             }
+        }
+        
+        function connectToCar(ip, carId) {
+            console.log(`Connecting to Car ${carId} at ${ip}`);
+            window.open(`http://${ip}`, '_blank');
         }
         
         function connectManual() {
@@ -266,34 +601,33 @@
             }
         }
         
-        function refreshCarStatus() {
-            // Reset all car statuses
-            carSlots.forEach(car => car.status = 'unknown');
-            generateCarGrid();
-        }
-        
-        // Auto-detect current network and suggest IPs
-        function detectNetwork() {
-            // Try to guess the network range based on current page URL
-            const currentHost = window.location.hostname;
-            if (currentHost && currentHost.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
-                const networkBase = currentHost.substring(0, currentHost.lastIndexOf('.') + 1);
-                
-                // Update car IPs to match detected network
-                carSlots.forEach((car, index) => {
-                    car.ip = networkBase + (101 + index);
-                });
-                
-                console.log(`Detected network: ${networkBase}x`);
-                generateCarGrid();
+        async function refreshAllCars() {
+            if (discoveredCars.length === 0) {
+                alert('No cars to refresh. Run a scan first!');
+                return;
             }
+            
+            console.log('Refreshing all discovered cars...');
+            const refreshPromises = discoveredCars.map(car => scanner.testCarIP(car.ip));
+            const results = await Promise.all(refreshPromises);
+            
+            discoveredCars = results.filter(result => result !== null);
+            updateCarGrid();
         }
         
-        // Initialize page
+        // Initialize
         window.addEventListener('load', () => {
-            generateCarGrid();
             detectNetwork();
+            updateCarGrid();
+            updateScanButtons();
         });
+        
+        // Auto-refresh every 30 seconds if cars are found
+        setInterval(() => {
+            if (discoveredCars.length > 0 && !isScanning) {
+                refreshAllCars();
+            }
+        }, 30000);
     </script>
 </body>
 </html>
